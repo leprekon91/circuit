@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CircuitBreaker } from '..';
 
 describe('circuit breaker', () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
 
   it('trips after failures and rejects while open', async () => {
     const cb = new CircuitBreaker(2, 1, 1000);
