@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { retry } from '../core/retry';
+import { retry } from '..';
 
 describe('retry', () => {
   it('retries a failing function', async () => {

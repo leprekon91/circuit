@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { wait, calcExponentialDelay } from '../core/backoff';
+import { wait, calcExponentialDelay } from '..';
 
 describe('backoff', () => {
   beforeEach(() => {

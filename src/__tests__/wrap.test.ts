@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { wrap } from '../core/wrap';
+import { wrap } from '..';
 
 describe('wrap integration', () => {
   beforeEach(() => vi.useFakeTimers());

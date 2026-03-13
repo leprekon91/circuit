@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { RateLimiter } from '../core/rateLimiter';
+import { RateLimiter } from '..';
 
 describe('rate limiter', () => {
   beforeEach(() => vi.useFakeTimers());
