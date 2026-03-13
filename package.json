@@ -13,7 +13,9 @@
     "clean": "rm -rf dist node_modules .turbo",
     "test": "vitest --run",
     "lint": "eslint --ext .ts src",
-    "format": "prettier --write \"src/**/*.ts\" README.md"
+    "format": "prettier --write \"src/**/*.ts\" README.md",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test && npm run build"
   },
   "keywords": [
     "resilience",
@@ -28,6 +30,24 @@
   "peerDependencies": {
     "axios": "^0.21 || ^1.0"
   },
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leprekon91/circuit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/leprekon91/circuit/issues"
+  },
+  "homepage": "https://github.com/leprekon91/circuit#readme",
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
