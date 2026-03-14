@@ -37,3 +37,34 @@ Common event types:
 - `retry.attempt`, `retry.delay`
 - `circuit.failure`, `circuit.success`, `circuit.trip`, `circuit.reset`, `circuit.half_open`, `circuit.reject`
 - `rate.acquire`, `rate.release`, `rate.queued`, `rate.refill`, `rate.reservoir_exhausted`
+
+Monitoring quick-start
+----------------------
+- Attach a monitor at the top-level `wrap(..., { monitor })` to receive events from all mechanisms, or scope it per-mechanism using `retry.monitor`, `circuit.monitor`, or `rateLimit.monitor`.
+- Mechanism-specific monitors override the top-level `monitor` for that mechanism.
+- Keep payloads small and JSON-serializable; prefer `{ type, payload }` shape for simple pipelines.
+
+Minimal example (collect events):
+
+```ts
+import { wrap } from '@leprekon-hub/fault-guard';
+
+const events: any[] = [];
+const monitor = (e: any) => events.push(e);
+
+await wrap(() => fetch('/unstable'), {
+  retry: { retries: 2 },
+  circuit: { failureThreshold: 3 },
+  rateLimit: { maxConcurrent: 3 },
+  monitor,
+});
+
+// inspect or forward events to your logging/telemetry
+console.log(events.map((e) => e.type));
+```
+
+Useful patterns
+-------------
+- Filter events by prefix (e.g., `type.startsWith('rate.')`) to route to different observability channels.
+- Include correlation IDs in payloads (if available) to relate events to specific requests.
+- Avoid expensive synchronous work inside `monitor` — forward or enqueue to your telemetry pipeline.
