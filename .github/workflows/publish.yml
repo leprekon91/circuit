@@ -22,7 +22,6 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org
           scope: '@leprekon-hub'
-          always-auth: true
 
       - run: npm ci
 
