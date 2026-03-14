@@ -23,10 +23,6 @@ jobs:
           scope: '@leprekon-hub'
           always-auth: true
 
-      - name: Verify OIDC authentication to npm
-        run: |
-          echo "Verifying npm authentication via OIDC..."
-          npm whoami || (echo "OIDC not configured on npm for this repo/scope" && exit 1)
       - name: Debug OIDC sub claim
         run: |
           TOKEN_JSON=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL")
@@ -34,6 +30,11 @@ jobs:
           PAYLOAD=$(printf '%s' "$TOKEN" | cut -d '.' -f2 | tr '_-' '/+')
           MOD=$(( ${#PAYLOAD} % 4 )); [ $MOD -ne 0 ] && PAD=$((4-MOD)) && PAYLOAD="$PAYLOAD$(printf '=%.0s' $(seq 1 $PAD))"
           printf '%s' "$PAYLOAD" | base64 -d 2>/dev/null | jq -r '.sub
+
+      - name: Verify OIDC authentication to npm
+        run: |
+          echo "Verifying npm authentication via OIDC..."
+          npm whoami || (echo "OIDC not configured on npm for this repo/scope" && exit 1)
 
       - run: npm ci
 
