@@ -114,7 +114,9 @@ describe('automatic key extraction with bulkheadKey', () => {
     await expect(p1).resolves.toBe('a');
     await expect(p2).resolves.toBe('b');
 
-    const keyEvents = events.filter((e) => e.type === 'bulkhead.acquire').map((e) => e.payload?.key);
+    const keyEvents = events
+      .filter((e) => e.type === 'bulkhead.acquire')
+      .map((e) => e.payload?.key);
     expect(keyEvents).toContain('auto1');
     expect(keyEvents).toContain('auto2');
   });
