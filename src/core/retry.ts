@@ -8,10 +8,13 @@ export async function retry<T>(fn: () => Promise<T>, opts: RetryOptions = {}) {
   const maxDelay = opts.maxDelayMs ?? 10000;
 
   let lastErr: unknown;
+  // `attempt` is 1-based and covers all calls including the first. Consumers that only
+  // want to observe retries (not the initial attempt) should filter by `attempt >= 2`.
   for (let attempt = 1; attempt <= retries + 1; attempt++) {
     try {
       opts.monitor?.({ type: 'retry.attempt', payload: { attempt } });
-      // ensure fn() is invoked asynchronously (macrotask) to avoid synchronous rejections
+      // Defer fn() to the next macrotask so that synchronous throws become rejections
+      // and callers have already had a chance to attach .catch() handlers.
       return await new Promise((res) => setTimeout(res, 0)).then(() => fn());
     } catch (err) {
       lastErr = err;
@@ -21,7 +24,7 @@ export async function retry<T>(fn: () => Promise<T>, opts: RetryOptions = {}) {
       await wait(delay);
     }
   }
-  // defer throwing to next macrotask so callers have a chance to attach handlers
+  // One final macrotask deferral keeps throw timing consistent with the per-attempt deferral above.
   await new Promise((res) => setTimeout(res, 0));
   if (lastErr instanceof Error) throw lastErr;
   throw new Error(String(lastErr));

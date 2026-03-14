@@ -39,19 +39,31 @@ export class CircuitBreaker {
   private onSuccess() {
     if (this.state === 'HALF_OPEN') {
       this.successes++;
+      // Snapshot before reset() zeroes the fields so the event reflects the actual probe result.
+      const snap = { state: this.state as string, successes: this.successes };
       if (this.successes >= this.successThreshold) {
-        this.reset();
+        this.reset(); // HALF_OPEN → CLOSED; emits circuit.reset
       }
+      this.monitor?.({ type: 'circuit.success', payload: snap });
     } else {
-      this.reset();
+      // CLOSED: reset the consecutive-failure streak without emitting circuit.reset
+      this.failures = 0;
+      this.monitor?.({
+        type: 'circuit.success',
+        payload: { state: this.state, successes: this.successes },
+      });
     }
-    this.monitor?.({
-      type: 'circuit.success',
-      payload: { state: this.state, successes: this.successes },
-    });
   }
 
   private onFailure() {
+    if (this.state === 'HALF_OPEN') {
+      // Any failure during probing re-opens the circuit immediately.
+      // failures is always 1 here — HALF_OPEN trips on the very first failure, so there is no
+      // accumulated counter to report.
+      this.monitor?.({ type: 'circuit.failure', payload: { failures: 1 } });
+      this.trip();
+      return;
+    }
     this.failures++;
     if (this.failures >= this.failureThreshold) {
       this.trip();

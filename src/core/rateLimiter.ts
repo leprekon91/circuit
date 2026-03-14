@@ -21,18 +21,22 @@ export class RateLimiter {
     if (this.reservoir === null) return;
 
     const now = Date.now();
+    const elapsed = now - this.lastRefill;
 
-    if (now - this.lastRefill >= this.reservoirRefreshIntervalMs) {
-      const added = this.reservoirRefreshAmount;
-      const before = this.reservoir ?? 0;
-      let next = before + added;
+    if (elapsed >= this.reservoirRefreshIntervalMs) {
+      // Credit all fully elapsed intervals so a long idle period catches up.
+      const intervals = Math.floor(elapsed / this.reservoirRefreshIntervalMs);
+      const added = this.reservoirRefreshAmount * intervals;
+      // `refillIfNeeded` returns early when `reservoir` is null, so the non-null assertion is safe.
+      let next = this.reservoir! + added;
 
       if (this.reservoirMax !== undefined) {
         next = Math.min(next, this.reservoirMax);
       }
 
       this.reservoir = next;
-      this.lastRefill = now;
+      // Advance lastRefill by whole intervals so the next window starts from the correct boundary.
+      this.lastRefill += intervals * this.reservoirRefreshIntervalMs;
       this.monitor?.({ type: 'rate.refill', payload: { reservoir: this.reservoir } });
     }
   }
@@ -45,33 +49,36 @@ export class RateLimiter {
       return Promise.reject(new Error('Rate limiter: reservoir exhausted'));
     }
 
+    // Reserve the reservoir token up-front, before deciding to run or queue.
+    // This prevents a queued job from seeing "reservoir exhausted" when it is finally
+    // dequeued, even though it was accepted while tokens were available.
+    if (this.reservoir !== null) this.reservoir--;
+
     if (this.current < this.maxConcurrent) {
-      this.current++;
-      if (this.reservoir !== null) {
-        this.reservoir!--;
-      }
-
-      this.monitor?.({ type: 'rate.acquire', payload: { current: this.current } });
-
-      try {
-        const res = await fn();
-        return res;
-      } finally {
-        this.current--;
-        this.monitor?.({ type: 'rate.release', payload: { current: this.current } });
-        this.next();
-      }
+      return this.run(fn);
     }
 
     return new Promise<T>((resolve, reject) => {
-      // enqueue and emit queued event immediately
       this.queue.push(() => {
-        // emit dequeue event when job starts running
         this.monitor?.({ type: 'rate.dequeue', payload: { queueLength: this.queue.length } });
-        this.schedule(fn).then(resolve).catch(reject);
+        // Use run() directly — reservoir was already reserved at queue time.
+        this.run(fn).then(resolve).catch(reject);
       });
       this.monitor?.({ type: 'rate.queued', payload: { queueLength: this.queue.length } });
     });
+  }
+
+  /** Execute fn immediately, assuming a slot is available. Does not touch the reservoir. */
+  private async run<T>(fn: () => Promise<T>): Promise<T> {
+    this.current++;
+    this.monitor?.({ type: 'rate.acquire', payload: { current: this.current } });
+    try {
+      return await fn();
+    } finally {
+      this.current--;
+      this.monitor?.({ type: 'rate.release', payload: { current: this.current } });
+      this.next();
+    }
   }
 
   private next() {
