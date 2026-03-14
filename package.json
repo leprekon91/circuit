@@ -1,6 +1,6 @@
 {
   "name": "@leprekon-hub/fault-guard",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "A resilience layer for HTTP clients that adds retries, backoff, rate-limit handling, and circuit breakers.",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
