@@ -20,8 +20,16 @@ jobs:
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
+          scope: '@leprekon-hub'
+          always-auth: true
+
+      - name: Verify OIDC authentication to npm
+        run: |
+          echo "Verifying npm authentication via OIDC..."
+          npm whoami || (echo "OIDC not configured on npm for this repo/scope" && exit 1)
 
       - run: npm ci
+
       - run: npm run build --if-present
 
       - run: npm publish --provenance --access public
