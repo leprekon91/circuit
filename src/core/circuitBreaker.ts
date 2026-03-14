@@ -8,7 +8,12 @@ export class CircuitBreaker {
   private state: State = 'CLOSED';
   private nextAttempt = 0;
 
-  constructor(private failureThreshold = 5, private successThreshold = 2, private timeoutMs = 60000, private monitor?: Monitor) {}
+  constructor(
+    private failureThreshold = 5,
+    private successThreshold = 2,
+    private timeoutMs = 60000,
+    private monitor?: Monitor,
+  ) {}
 
   public async exec<T>(fn: () => Promise<T>): Promise<T> {
     if (this.state === 'OPEN') {
@@ -40,7 +45,10 @@ export class CircuitBreaker {
     } else {
       this.reset();
     }
-    this.monitor?.({ type: 'circuit.success', payload: { state: this.state, successes: this.successes } });
+    this.monitor?.({
+      type: 'circuit.success',
+      payload: { state: this.state, successes: this.successes },
+    });
   }
 
   private onFailure() {
