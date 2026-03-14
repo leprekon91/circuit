@@ -8,13 +8,13 @@ export async function wrap<T>(fn: () => Promise<T>, opts: WrapOptions = {}): Pro
   const circuit = opts.circuit;
   const retryOpts = opts.retry;
 
-  const limiter = rate ? new RateLimiter(rate.maxConcurrent ?? 10, rate.reservoir, rate.reservoirRefreshIntervalMs, rate.reservoirRefreshAmount ?? 0) : null;
-  const breaker = circuit ? new CircuitBreaker(circuit.failureThreshold ?? 5, circuit.successThreshold ?? 2, circuit.timeoutMs ?? 60000) : null;
+  const limiter = rate ? new RateLimiter(rate.maxConcurrent ?? 10, rate.reservoir, rate.reservoirRefreshIntervalMs, rate.reservoirRefreshAmount ?? 0, opts.monitor) : null;
+  const breaker = circuit ? new CircuitBreaker(circuit.failureThreshold ?? 5, circuit.successThreshold ?? 2, circuit.timeoutMs ?? 60000, opts.monitor) : null;
 
   const exec = async () => {
     const inner = async () => {
       const target = breaker ? () => breaker.exec(fn) : fn;
-      if (retryOpts) return retry(target, retryOpts);
+      if (retryOpts) return retry(target, { ...retryOpts, monitor: opts.monitor });
       return target();
     };
 
