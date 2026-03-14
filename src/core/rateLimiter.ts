@@ -6,15 +6,32 @@ export class RateLimiter {
   private reservoir: number | null = null;
   private lastRefill = Date.now();
 
-  constructor(private maxConcurrent = 10, reservoir?: number, private reservoirRefreshIntervalMs = 60000, private reservoirRefreshAmount = 0, private monitor?: Monitor) {
+  constructor(
+    private maxConcurrent = 10,
+    reservoir?: number,
+    private reservoirRefreshIntervalMs = 60000,
+    private reservoirRefreshAmount = 0,
+    private reservoirMax?: number,
+    private monitor?: Monitor,
+  ) {
     this.reservoir = reservoir ?? null;
   }
 
   private refillIfNeeded() {
     if (this.reservoir === null) return;
+
     const now = Date.now();
+
     if (now - this.lastRefill >= this.reservoirRefreshIntervalMs) {
-      this.reservoir = (this.reservoir ?? 0) + this.reservoirRefreshAmount;
+      const added = this.reservoirRefreshAmount;
+      const before = this.reservoir ?? 0;
+      let next = before + added;
+
+      if (this.reservoirMax !== undefined) {
+        next = Math.min(next, this.reservoirMax);
+      }
+
+      this.reservoir = next;
       this.lastRefill = now;
       this.monitor?.({ type: 'rate.refill', payload: { reservoir: this.reservoir } });
     }
@@ -30,8 +47,12 @@ export class RateLimiter {
 
     if (this.current < this.maxConcurrent) {
       this.current++;
-      if (this.reservoir !== null) this.reservoir!--;
+      if (this.reservoir !== null) {
+        this.reservoir!--;
+      }
+
       this.monitor?.({ type: 'rate.acquire', payload: { current: this.current } });
+
       try {
         const res = await fn();
         return res;
@@ -43,10 +64,13 @@ export class RateLimiter {
     }
 
     return new Promise<T>((resolve, reject) => {
+      // enqueue and emit queued event immediately
       this.queue.push(() => {
-        this.monitor?.({ type: 'rate.queued', payload: { queueLength: this.queue.length } });
+        // emit dequeue event when job starts running
+        this.monitor?.({ type: 'rate.dequeue', payload: { queueLength: this.queue.length } });
         this.schedule(fn).then(resolve).catch(reject);
       });
+      this.monitor?.({ type: 'rate.queued', payload: { queueLength: this.queue.length } });
     });
   }
 
