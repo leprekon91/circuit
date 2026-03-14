@@ -5,10 +5,10 @@ A resilience layer for HTTP clients that adds retries, backoff, rate-limit handl
 ## Installation
 
 
-Install from npm (package name: `fault-guard`) and add `axios` if you plan to use the adapter:
+Install from npm (package name: `@leprekon-hub/fault-guard`) and add `axios` if you plan to use the adapter:
 
 ```bash
-npm install fault-guard
+npm install @leprekon-hub/fault-guard
 # if using axios adapter
 npm install axios
 ```
@@ -18,7 +18,7 @@ npm install axios
 Wrap any Promise-returning function with `wrap(...)` to apply retries, circuit breaker, and rate limiting:
 
 ```ts
-import { wrap } from 'fault-guard';
+import { wrap } from '@leprekon-hub/fault-guard';
 
 const result = await wrap(() => fetchMyApi(), {
 	retry: { retries: 3, minDelayMs: 100 },
@@ -31,7 +31,7 @@ Use the Axios adapter to automatically protect requests made by an Axios instanc
 
 ```ts
 import axios from 'axios';
-import { applyAxiosResilience } from 'fault-guard';
+import { applyAxiosResilience } from '@leprekon-hub/fault-guard';
 
 const client = axios.create({ baseURL: 'https://api.example.com' });
 applyAxiosResilience(client, {
@@ -119,7 +119,7 @@ await wrap(() => fetch('/limited'), { rateLimit: { reservoir: 100, reservoirRefr
 1) Full pipeline: rate limit + retry + circuit
 
 ```ts
-import { wrap } from 'fault-guard';
+import { wrap } from '@leprekon-hub/fault-guard';
 
 const opts = {
 	rateLimit: { maxConcurrent: 5 },
@@ -134,7 +134,7 @@ const result = await wrap(() => fetch('https://httpbin.org/status/500'), opts);
 
 ```ts
 import axios from 'axios';
-import { applyAxiosResilience } from 'fault-guard';
+import { applyAxiosResilience } from '@leprekon-hub/fault-guard';
 
 const client = axios.create({ baseURL: 'https://httpbin.org' });
 applyAxiosResilience(client, { retry: { retries: 2, minDelayMs: 200 } });
@@ -149,7 +149,7 @@ try {
 3) Low-level: use `CircuitBreaker` directly for custom flows
 
 ```ts
-import { CircuitBreaker } from 'fault-guard';
+import { CircuitBreaker } from '@leprekon-hub/fault-guard';
 
 const cb = new CircuitBreaker(3, 1, 15000);
 
