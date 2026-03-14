@@ -38,8 +38,8 @@ Common event types:
 - `circuit.failure`, `circuit.success`, `circuit.trip`, `circuit.reset`, `circuit.half_open`, `circuit.reject`
 - `rate.acquire`, `rate.release`, `rate.queued`, `rate.refill`, `rate.reservoir_exhausted`
 
-Monitoring quick-start
-----------------------
+## Monitoring quick-start
+
 - Attach a monitor at the top-level `wrap(..., { monitor })` to receive events from all mechanisms, or scope it per-mechanism using `retry.monitor`, `circuit.monitor`, or `rateLimit.monitor`.
 - Mechanism-specific monitors override the top-level `monitor` for that mechanism.
 - Keep payloads small and JSON-serializable; prefer `{ type, payload }` shape for simple pipelines.
@@ -63,8 +63,8 @@ await wrap(() => fetch('/unstable'), {
 console.log(events.map((e) => e.type));
 ```
 
-Useful patterns
--------------
+## Useful patterns
+
 - Filter events by prefix (e.g., `type.startsWith('rate.')`) to route to different observability channels.
 - Include correlation IDs in payloads (if available) to relate events to specific requests.
 - Avoid expensive synchronous work inside `monitor` — forward or enqueue to your telemetry pipeline.
