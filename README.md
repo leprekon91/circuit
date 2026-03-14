@@ -4,7 +4,6 @@ A resilience layer for HTTP clients that adds retries, backoff, rate-limit handl
 
 ## Installation
 
-
 Install from npm (package name: `@leprekon-hub/fault-guard`) and add `axios` if you plan to use the adapter:
 
 ```bash
@@ -21,9 +20,9 @@ Wrap any Promise-returning function with `wrap(...)` to apply retries, circuit b
 import { wrap } from '@leprekon-hub/fault-guard';
 
 const result = await wrap(() => fetchMyApi(), {
-	retry: { retries: 3, minDelayMs: 100 },
-	circuit: { failureThreshold: 5, timeoutMs: 30000 },
-	rateLimit: { maxConcurrent: 5 }
+  retry: { retries: 3, minDelayMs: 100 },
+  circuit: { failureThreshold: 5, timeoutMs: 30000 },
+  rateLimit: { maxConcurrent: 5 },
 });
 ```
 
@@ -35,9 +34,9 @@ import { applyAxiosResilience } from '@leprekon-hub/fault-guard';
 
 const client = axios.create({ baseURL: 'https://api.example.com' });
 applyAxiosResilience(client, {
-	retry: { retries: 2, minDelayMs: 200 },
-	circuit: { failureThreshold: 3, timeoutMs: 60000 },
-	rateLimit: { maxConcurrent: 10 }
+  retry: { retries: 2, minDelayMs: 200 },
+  circuit: { failureThreshold: 3, timeoutMs: 60000 },
+  rateLimit: { maxConcurrent: 10 },
 });
 
 await client.get('/resource');
@@ -45,7 +44,8 @@ await client.get('/resource');
 
 **Note:** the Axios adapter expects `axios` to be a peer dependency of your project.
 
-**Table of contents**
+## Table of contents
+
 - **Installation**: how to install
 - **Quick Start**: minimal examples
 - **API**: exported functions and classes
@@ -65,10 +65,10 @@ await client.get('/resource');
 All options are passed to `wrap` or `applyAxiosResilience` using the same shape (`WrapOptions`).
 
 - **RetryOptions** (`retry`):
-	- **retries**: number — maximum retry attempts (default: 3).
-	- **minDelayMs**: number — base delay for exponential backoff (default: 100 ms).
-	- **maxDelayMs**: number — maximum backoff delay (default: 10000 ms).
-	- **factor**: number — exponential factor (default: 2).
+  - **retries**: number — maximum retry attempts (default: 3).
+  - **minDelayMs**: number — base delay for exponential backoff (default: 100 ms).
+  - **maxDelayMs**: number — maximum backoff delay (default: 10000 ms).
+  - **factor**: number — exponential factor (default: 2).
 
 Example:
 
@@ -77,11 +77,12 @@ await wrap(() => fetch('/unstable'), { retry: { retries: 4, minDelayMs: 200, fac
 ```
 
 - **CircuitOptions** (`circuit`):
-	- **failureThreshold**: number — failures required to open the circuit (default: 5).
-	- **successThreshold**: number — consecutive successes required to close from HALF_OPEN (default: 2).
-	- **timeoutMs**: number — how long the circuit stays OPEN before moving to HALF_OPEN (default: 60000 ms).
+  - **failureThreshold**: number — failures required to open the circuit (default: 5).
+  - **successThreshold**: number — consecutive successes required to close from HALF_OPEN (default: 2).
+  - **timeoutMs**: number — how long the circuit stays OPEN before moving to HALF_OPEN (default: 60000 ms).
 
 Behavior notes:
+
 - When failures reach `failureThreshold`, the circuit `OPEN`s and immediately rejects calls until `timeoutMs` elapses.
 - After `timeoutMs`, the circuit moves to `HALF_OPEN` and will allow limited attempts; `successThreshold` successful calls will close it.
 
@@ -93,12 +94,13 @@ await cb.exec(() => fetch('/maybe-fails'));
 ```
 
 - **RateLimitOptions** (`rateLimit`):
-	- **maxConcurrent**: number — maximum concurrent calls allowed (default: 10).
-	- **reservoir**: number | undefined — number of tokens available for the interval (if provided, limits per interval).
-	- **reservoirRefreshIntervalMs**: number — how often to refill the reservoir.
-	- **reservoirRefreshAmount**: number — amount to add on each interval.
+  - **maxConcurrent**: number — maximum concurrent calls allowed (default: 10).
+  - **reservoir**: number | undefined — number of tokens available for the interval (if provided, limits per interval).
+  - **reservoirRefreshIntervalMs**: number — how often to refill the reservoir.
+  - **reservoirRefreshAmount**: number — amount to add on each interval.
 
 Behavior notes:
+
 - `RateLimiter` enforces `maxConcurrent` immediate concurrency. Calls beyond this limit are queued.
 - If a `reservoir` is provided and reaches zero, new calls are rejected until a refill occurs.
 
@@ -111,26 +113,28 @@ await wrap(() => fetch('/heavy'), { rateLimit: { maxConcurrent: 3 } });
 Example (reservoir):
 
 ```ts
-await wrap(() => fetch('/limited'), { rateLimit: { reservoir: 100, reservoirRefreshIntervalMs: 60000, reservoirRefreshAmount: 100 } });
+await wrap(() => fetch('/limited'), {
+  rateLimit: { reservoir: 100, reservoirRefreshIntervalMs: 60000, reservoirRefreshAmount: 100 },
+});
 ```
 
 ## Examples
 
-1) Full pipeline: rate limit + retry + circuit
+1. Full pipeline: rate limit + retry + circuit
 
 ```ts
 import { wrap } from '@leprekon-hub/fault-guard';
 
 const opts = {
-	rateLimit: { maxConcurrent: 5 },
-	retry: { retries: 3, minDelayMs: 100 },
-	circuit: { failureThreshold: 4, successThreshold: 2, timeoutMs: 30000 }
+  rateLimit: { maxConcurrent: 5 },
+  retry: { retries: 3, minDelayMs: 100 },
+  circuit: { failureThreshold: 4, successThreshold: 2, timeoutMs: 30000 },
 };
 
 const result = await wrap(() => fetch('https://httpbin.org/status/500'), opts);
 ```
 
-2) Using the Axios adapter (recommended for Axios-based codebases)
+2. Using the Axios adapter (recommended for Axios-based codebases)
 
 ```ts
 import axios from 'axios';
@@ -140,13 +144,13 @@ const client = axios.create({ baseURL: 'https://httpbin.org' });
 applyAxiosResilience(client, { retry: { retries: 2, minDelayMs: 200 } });
 
 try {
-	await client.get('/status/500');
+  await client.get('/status/500');
 } catch (err) {
-	console.error('Request failed after resilience handling:', err.message);
+  console.error('Request failed after resilience handling:', err.message);
 }
 ```
 
-3) Low-level: use `CircuitBreaker` directly for custom flows
+3. Low-level: use `CircuitBreaker` directly for custom flows
 
 ```ts
 import { CircuitBreaker } from '@leprekon-hub/fault-guard';
@@ -154,9 +158,9 @@ import { CircuitBreaker } from '@leprekon-hub/fault-guard';
 const cb = new CircuitBreaker(3, 1, 15000);
 
 try {
-	const res = await cb.exec(() => fetch('https://example.com'));
+  const res = await cb.exec(() => fetch('https://example.com'));
 } catch (err) {
-	// handle open circuit or underlying error
+  // handle open circuit or underlying error
 }
 ```
 
@@ -174,7 +178,3 @@ try {
 ## Contributing & License
 
 Contributions welcome. The project is MIT licensed (see `LICENSE`).
-
----
-
-If you'd like, I can also add runnable example files under `examples/`, add TypeDoc comments, or generate a full API reference site.
