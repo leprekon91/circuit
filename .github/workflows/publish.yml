@@ -27,4 +27,7 @@ jobs:
 
       - run: npm run build --if-present
 
+      # Remove the auth token placeholder so npm uses OIDC for trusted publishing
+      - run: sed -i '/_authToken/d' ~/.npmrc
+
       - run: npm publish --provenance --access public
