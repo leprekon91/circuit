@@ -4,60 +4,61 @@
 
 Type: `type Monitor = (event: { type: string; payload?: Record<string, unknown> }) => void`
 
-Where to provide it:
+## Where to provide it
 
-- pass `monitor` at the top-level `wrap(..., { monitor })` to receive events from retry, rate limiter, and circuit breaker.
-- or provide `monitor` directly in `retry`, `circuit`, or `rateLimit` options to scope events.
+- Pass `monitor` at the top level — `wrap(..., { monitor })` — to receive events from all mechanisms.
+- Or provide `monitor` directly in `retry`, `circuit`, `rateLimit`, or `bulkhead` options to scope events to one mechanism.
+- A mechanism-specific `monitor` **overrides** the top-level `monitor` for that mechanism.
 
-Notes on precedence and async behavior:
+## All event types
 
-- Mechanism-specific `monitor` (for example `rateLimit.monitor` or `retry.monitor`) takes precedence over the top-level `monitor` passed to `wrap`.
-- Some mechanisms throw synchronously for certain conditions (for example `CircuitBreaker` throws `Error('Circuit is open')` when open). `retry` intentionally defers invocation of the user `fn()` to a macrotask to avoid synchronous rejection races; mechanism authors should follow that pattern when appropriate or document synchronous behavior.
+| Prefix | Event | Payload |
+|---|---|---|
+| `retry` | `retry.attempt` | `{ attempt }` |
+| `retry` | `retry.delay` | `{ attempt, delay }` |
+| `circuit` | `circuit.failure` | `{ failures }` |
+| `circuit` | `circuit.success` | `{ state, successes }` |
+| `circuit` | `circuit.trip` | `{ nextAttempt }` |
+| `circuit` | `circuit.reset` | `{}` |
+| `circuit` | `circuit.half_open` | `{ nextAttempt }` |
+| `circuit` | `circuit.reject` | `{ state }` |
+| `rate` | `rate.acquire` | `{ current }` |
+| `rate` | `rate.release` | `{ current }` |
+| `rate` | `rate.queued` | `{ queueLength }` |
+| `rate` | `rate.dequeue` | `{ queueLength }` |
+| `rate` | `rate.refill` | `{ reservoir }` |
+| `rate` | `rate.reservoir_exhausted` | `{}` |
+| `bulkhead` | `bulkhead.acquire` | `{ key?, current }` |
+| `bulkhead` | `bulkhead.release` | `{ key?, current }` |
+| `bulkhead` | `bulkhead.queued` | `{ key?, queueLength }` |
+| `bulkhead` | `bulkhead.dequeue` | `{ key?, queueLength }` |
+| `bulkhead` | `bulkhead.reject` | `{ key?, queueLength }` |
+| `bulkhead` | `bulkhead.cleanup` | `{ key }` |
+| `bulkhead` | `bulkhead.evict` | `{ key }` |
+| `bulkhead` | `bulkhead.key_error` | `{ error }` |
 
-Example:
+## Example — collect all events
 
 ```ts
 import { wrap } from '@leprekon-hub/fault-guard';
 
-const events: any[] = [];
-const monitor = (e: any) => events.push(e);
+const events: { type: string; payload?: Record<string, unknown> }[] = [];
 
 await wrap(() => fetch('/unstable'), {
-  retry: { retries: 3 },
-  circuit: { failureThreshold: 4 },
+  retry:     { retries: 3 },
+  circuit:   { failureThreshold: 4 },
   rateLimit: { maxConcurrent: 5 },
-  monitor,
+  bulkhead:  { limit: 10 },
+  monitor:   (e) => events.push(e),
 });
 
 console.log(events);
 ```
 
-Common event types:
+## Notes
 
-- `retry.attempt`, `retry.delay`
-- `circuit.failure`, `circuit.success`, `circuit.trip`, `circuit.reset`, `circuit.half_open`, `circuit.reject`
-- `rate.acquire`, `rate.release`, `rate.queued`, `rate.refill`, `rate.reservoir_exhausted`
-
-## Monitoring quick-start
-
-- Attach a monitor at the top-level `wrap(..., { monitor })` to receive events from all mechanisms, or scope it per-mechanism using `retry.monitor`, `circuit.monitor`, or `rateLimit.monitor`.
-- Mechanism-specific monitors override the top-level `monitor` for that mechanism.
-- Keep payloads small and JSON-serializable; prefer `{ type, payload }` shape for simple pipelines.
-
-Minimal example (collect events):
-
-```ts
-import { wrap } from '@leprekon-hub/fault-guard';
-
-const events: any[] = [];
-const monitor = (e: any) => events.push(e);
-
-await wrap(() => fetch('/unstable'), {
-  retry: { retries: 2 },
-  circuit: { failureThreshold: 3 },
-  rateLimit: { maxConcurrent: 3 },
-  monitor,
-});
+- Keep payloads small and JSON-serializable.
+- `CircuitBreaker` rejects immediately with `Error('Circuit is open')` when the circuit is open. `retry` defers invocation of `fn()` to a macrotask to avoid synchronous rejection races; keep this in mind when mixing mechanisms.
 
 // inspect or forward events to your logging/telemetry
 console.log(events.map((e) => e.type));

@@ -15,7 +15,7 @@ Options (via `BulkheadOptions` / `WrapOptions.bulkhead`):
 - `monitor`: `Monitor` — receive `bulkhead.*` events.
 - `keyed`: boolean — enable per-key pools (default: false).
 - `idleTimeoutMs`: number — milliseconds of inactivity after which a keyed pool is cleaned up.
-- `maxKeys`: number — maximum keyed pools to keep (evict idle pools when exceeded).
+- `maxKeys`: number — maximum keyed pools to keep. When exceeded, idle pools are evicted to make room. If no idle pool can be evicted the call rejects with `Error('Bulkhead: max keyed pools exceeded')`.
 - `bulkheadKey`: `() => string` — optional function used to generate a key automatically when `exec(fn)` is called without an explicit key. Useful for adapters that can capture request context.
 
 ## How it works
@@ -34,6 +34,7 @@ Options (via `BulkheadOptions` / `WrapOptions.bulkhead`):
 - `bulkhead.reject` — job rejected due to full queue, payload: `{ key?, queueLength }`.
 - `bulkhead.cleanup` — keyed pool removed due to idleness, payload: `{ key }`.
 - `bulkhead.evict` — keyed pool evicted to enforce `maxKeys`, payload: `{ key }`.
+- `bulkhead.key_error` — `bulkheadKey` function threw; fell back to global pool, payload: `{ error }`.
 
 ## Usage examples
 
@@ -53,7 +54,14 @@ await bh.exec('customer:123', () => fetch('/customer/123/data'));
 
 Wrap integration:
 
+Pass a **shared** `Bulkhead` instance so concurrency is enforced across all calls to `wrap()`. Passing an options object creates a new bulkhead per call, which does **not** limit concurrency across separate invocations.
+
 ```ts
+// Correct: shared instance limits concurrency across all wrap() calls
+const bh = new Bulkhead(5, Infinity, monitor, { keyed: true, idleTimeoutMs: 60000 });
+await wrap(() => fetch('/api'), { bulkhead: bh });
+
+// Note: passing options creates a one-off bulkhead scoped to a single call
 await wrap(() => fetch('/api'), { bulkhead: { limit: 5, keyed: true, idleTimeoutMs: 60000 } });
 ```
 

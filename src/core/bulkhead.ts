@@ -81,7 +81,7 @@ class Pool {
 export class Bulkhead {
   private globalPool: Pool;
   private pools: Map<PoolKey, Pool> = new Map();
-  private cleanupTimer: NodeJS.Timeout | null = null;
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private limit = 10,
@@ -101,8 +101,9 @@ export class Bulkhead {
   private startCleanup() {
     const interval = Math.max(1000, this.opts!.idleTimeoutMs!);
     if (this.cleanupTimer) return;
-    this.cleanupTimer = setInterval(() => this.cleanupOnce(), interval);
-    if (this.cleanupTimer.unref) this.cleanupTimer.unref();
+    const timer = setInterval(() => this.cleanupOnce(), interval);
+    (timer as unknown as { unref?: () => void }).unref?.();
+    this.cleanupTimer = timer;
   }
 
   private stopCleanup() {
@@ -127,7 +128,7 @@ export class Bulkhead {
   private ensurePoolForKey(key?: PoolKey): Pool {
     if (!this.opts?.keyed) return this.globalPool;
 
-    if (!key && this.opts?.keyFn) {
+    if (key == null && this.opts?.keyFn) {
       try {
         key = this.opts.keyFn();
       } catch (err) {
@@ -137,7 +138,7 @@ export class Bulkhead {
       }
     }
 
-    if (!key) return this.globalPool;
+    if (key == null) return this.globalPool;
 
     const existing = this.pools.get(key);
     if (existing) return existing;

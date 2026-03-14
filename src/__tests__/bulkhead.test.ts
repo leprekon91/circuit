@@ -75,6 +75,8 @@ describe('bulkhead keyed pools and idle cleanup', () => {
 
     const types = events.map((e) => e.type);
     expect(types).toContain('bulkhead.cleanup');
+
+    bh.shutdown();
   });
 });
 
@@ -119,5 +121,7 @@ describe('automatic key extraction with bulkheadKey', () => {
       .map((e) => e.payload?.key);
     expect(keyEvents).toContain('auto1');
     expect(keyEvents).toContain('auto2');
+
+    bh.shutdown();
   });
 });

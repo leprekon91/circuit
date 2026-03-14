@@ -14,15 +14,29 @@ export function applyAxiosResilience(axios: AxiosInstance, opts: WrapOptions = {
 
       // create per-request wrap options so we can inject a bulkheadKey derived from the request
       const perRequestOpts: WrapOptions = { ...opts };
-      if (opts.bulkhead && opts.bulkhead.keyed && !opts.bulkhead.bulkheadKey) {
+      if (opts.bulkhead && (opts.bulkhead as { keyed?: boolean }).keyed && !(opts.bulkhead as { bulkheadKey?: unknown }).bulkheadKey) {
         // derive a key from request config: prefer explicit header, then tenant header, then method+path
         const derive = () => {
           try {
-            const headers = (config.headers || {}) as Record<string, any>;
-            const explicit = headers['x-bulkhead-key'] || headers['X-Bulkhead-Key'];
-            if (explicit) return String(explicit);
-            const tenant = headers['x-tenant-id'] || headers['X-Tenant-Id'];
-            if (tenant) return `tenant:${String(tenant)}`;
+            // Support both AxiosHeaders instances (Axios v1, which expose .get()) and plain objects.
+            const getHeader = (name: string): string | undefined => {
+              const h = config.headers as unknown;
+              if (h != null && typeof (h as { get?: unknown }).get === 'function') {
+                const val = (h as { get: (n: string) => unknown }).get(name);
+                return val != null ? String(val) : undefined;
+              }
+              if (h != null && typeof h === 'object') {
+                const obj = h as Record<string, unknown>;
+                const lower = name.toLowerCase();
+                const v = obj[lower] ?? obj[name];
+                return v != null ? String(v) : undefined;
+              }
+              return undefined;
+            };
+            const explicit = getHeader('x-bulkhead-key');
+            if (explicit) return explicit;
+            const tenant = getHeader('x-tenant-id');
+            if (tenant) return `tenant:${tenant}`;
             const method = (config.method || 'GET').toUpperCase();
             let path = String(config.url || '');
             try {
@@ -37,7 +51,7 @@ export function applyAxiosResilience(axios: AxiosInstance, opts: WrapOptions = {
             return 'unknown';
           }
         };
-        perRequestOpts.bulkhead = { ...opts.bulkhead, bulkheadKey: derive };
+        perRequestOpts.bulkhead = { ...(opts.bulkhead as object), bulkheadKey: derive } as typeof opts.bulkhead;
       }
 
       const promiseFn = () => axios(config);

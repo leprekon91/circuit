@@ -36,10 +36,23 @@ export interface BulkheadOptions {
   bulkheadKey?: () => string;
 }
 
+/** Structural interface satisfied by a `Bulkhead` instance, allowing callers to pass a shared instance into `wrap()`. */
+export interface BulkheadLike {
+  exec<T>(keyOrFn: string | (() => Promise<T>), maybeFn?: () => Promise<T>): Promise<T>;
+  shutdown(): void;
+}
+
+/** Structural interface satisfied by a `RateLimiter` instance, allowing callers to pass a shared instance into `wrap()`. */
+export interface RateLimiterLike {
+  schedule<T>(fn: () => Promise<T>): Promise<T>;
+}
+
 export interface WrapOptions {
   retry?: RetryOptions;
   circuit?: CircuitOptions;
-  rateLimit?: RateLimitOptions;
-  bulkhead?: BulkheadOptions;
+  /** Pass a `RateLimitOptions` object to create a one-off limiter, or a `RateLimiter` instance to share one across calls. */
+  rateLimit?: RateLimitOptions | RateLimiterLike;
+  /** Pass a `BulkheadOptions` object to create a one-off bulkhead, or a `Bulkhead` instance to share one across calls. */
+  bulkhead?: BulkheadOptions | BulkheadLike;
   monitor?: Monitor;
 }
